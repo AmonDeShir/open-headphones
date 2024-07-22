@@ -2,6 +2,8 @@
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 
+#include "PWM.h"
+
 #define diode 15
 #define speaker 16
 
@@ -17,32 +19,22 @@ int main() {
 
     uart_init(uart0, 9600);
 
-    int period = 500;
-    int cycle = 250;
+    float voltage = 3.3f;
 
-    // pwm A
-    gpio_set_function(diode, GPIO_FUNC_PWM);
-    uint sliceA = pwm_gpio_to_slice_num(diode);
-    uint channelA = pwm_gpio_to_channel(diode);
-    pwm_set_enabled(sliceA, true);
-    pwm_set_wrap(sliceA, period);
+    PWM_Ports pwm_a = PWM_config(diode);
+    PWM_Ports pwm_b = PWM_config(speaker);
 
-    // pwm B
-    gpio_set_function(speaker, GPIO_FUNC_PWM);
-    uint sliceB = pwm_gpio_to_slice_num(speaker);
-    uint channelB = pwm_gpio_to_channel(speaker);
-    pwm_set_enabled(sliceB, true);
-    pwm_set_wrap(sliceB, period);
+    const int notes[] = {267, 277, 294, 311, 330, 349, 370, 392, 410, 440, 466, 494};
+    const int volume = PWM_calc_volume(50);
+    const float tone_duration = 0.2; 
+    const float rest_duration = 0.025; 
 
     while(true) {
-        pwm_set_chan_level(sliceA, channelA, cycle);
-        pwm_set_chan_level(sliceB, channelB, cycle);
-
-        cycle += 10;
-        sleep_ms(100);
-        
-        if (cycle >= 500) {
-            cycle = 0;
+        for (auto note : notes) {
+            PWM_play_note(&pwm_b, note, tone_duration, volume);
+            PWM_play_note(&pwm_a, note, tone_duration, volume);
+            PWM_play_break(&pwm_b, rest_duration);
+            PWM_play_break(&pwm_a, rest_duration);
         }
     }
 
