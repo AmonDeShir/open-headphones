@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "pico/stdlib.h"
 #include "hardware/pwm.h"
 
@@ -6,6 +7,23 @@
 
 #define diode 15
 #define speaker 16
+
+void read_line_from_uart(uart_inst_t *uart, char *buffer, size_t max_length) {
+    size_t index = 0;
+
+    while (index < max_length - 1) {
+        char letter;
+
+        uart_read_blocking(uart, (uint8_t*)&letter, 1);
+        buffer[index++] = letter;
+
+        if (letter == '\n') {
+            break;
+        }
+    }
+
+    buffer[index] = '\0';
+}
 
 int main() {
     stdio_init_all();
@@ -24,18 +42,22 @@ int main() {
     PWM_Ports pwm_a = PWM_config(diode);
     PWM_Ports pwm_b = PWM_config(speaker);
 
-    const int notes[] = {267, 277, 294, 311, 330, 349, 370, 392, 410, 440, 466, 494};
+    int note = 244;
     const int volume = PWM_calc_volume(50);
     const float tone_duration = 0.2; 
     const float rest_duration = 0.025; 
 
+    char line[256];
+
     while(true) {
-        for (auto note : notes) {
-            PWM_play_note(&pwm_b, note, tone_duration, volume);
-            PWM_play_note(&pwm_a, note, tone_duration, volume);
-            PWM_play_break(&pwm_b, rest_duration);
-            PWM_play_break(&pwm_a, rest_duration);
+        if(uart_is_readable(uart0)){
+            read_line_from_uart(uart0, line, sizeof(line));
+
+            note = atoi(line);
         }
+
+        PWM_play_note(&pwm_b, note, tone_duration, volume);
+        PWM_play_break(&pwm_b, rest_duration);        
     }
 
     return 0;
